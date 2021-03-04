@@ -1,0 +1,20 @@
+server:
+  port: 8000
+spring:
+  application:
+    name: nacos-order-consumer
+  cloud:
+    nacos:
+      discovery:
+        server-addr: localhost:8848
+    sentinel:
+      transport:
+        dashboard: localhost:8858
+        port: 8791
+#消费者将要去访问的微服务名称(注册成功进nacos的微服务提供者)
+service-url:
+  nacos-user-service: http://nacos-payment-provider
+#激活sentinel对opfeign的支持
+feign:
+  sentinel:
+    enabled: true

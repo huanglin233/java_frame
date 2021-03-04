@@ -1,0 +1,17 @@
+server:
+  port: 8080 
+spring:
+  application:
+    name: springboot-rabbitmq
+  rabbitmq:
+    host: localhost
+    port: 5672
+    username: admin
+    password: admin
+    virtual-host: my_vhost
+    # ------- 消息确认配置项 --------
+    # 确认消息已发送到交换机
+#    publisher-confirms: true 高版本使用一下参数
+    publisher-confirm-type: correlated
+    # 确认消息已发送队列
+    publisher-returns: true
