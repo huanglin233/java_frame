@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<beans xmlns="http://www.springframework.org/schema/beans"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xmlns:context="http://www.springframework.org/schema/context"
+	xmlns:mvc="http://www.springframework.org/schema/mvc"
+	xsi:schemaLocation="http://www.springframework.org/schema/beans
+    http://www.springframework.org/schema/beans/spring-beans.xsd
+    http://www.springframework.org/schema/context
+    http://www.springframework.org/schema/context/spring-context.xsd
+    http://www.springframework.org/schema/mvc
+    http://www.springframework.org/schema/mvc/spring-mvc.xsd">
+
+	<!-- 加载所有配置文件 -->
+<!-- 	<context:property-placeholder location="classpath*:data/*.properties" /> -->
+	<!-- 还可以是下面方式，加载多个目录中的 -->
+	<context:property-placeholder location="classpath:jdbc.properties,classpath:redis.properties" />
+
+	<import resource="spring-mybatis.xml"></import>
+	<import resource="spring-redis.xml"></import>
+	<import resource="spring-dubbo-provider.xml"></import>
+	<!--service实现类扫描 -->
+	<context:component-scan base-package="com.hl.ssm.**" />
+</beans>
