@@ -4,10 +4,10 @@ spring:
   application:
     name: springboot-rabbitmq
   rabbitmq:
-    host: localhost
+    host: 192.168.56.101
     port: 5672
-    username: admin
-    password: admin
+    username: hl
+    password: hl
     virtual-host: my_vhost
     # ------- 消息确认配置项 --------
     # 确认消息已发送到交换机

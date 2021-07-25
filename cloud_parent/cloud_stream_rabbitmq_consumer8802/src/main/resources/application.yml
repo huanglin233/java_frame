@@ -12,11 +12,11 @@ spring:
           environment:
             spring:
               rabbitmq:
-                host: localhost
+                host: 192.168.56.101
                 virtual-host: my_vhost
                 port: 5672
-                username: admin
-                password: admin
+                username: hl
+                password: hl
       bindings:
         input: # 这个名字是一个通道的名称
           destination: streamExchange # 表示要使用的exchange的名称定义

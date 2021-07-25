@@ -22,7 +22,7 @@ public class MyStream {
        // 程序的唯一标识符以区别于其他程序与同一kafka的通讯
        properties.put(StreamsConfig.APPLICATION_ID_CONFIG, "hl");
        // 用于建立与kafka的初始连接的主机/端口的对应列表
-       properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG,"172.17.0.1:9092");
+       properties.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG,"192.168.56.101:9092");
        // 记录键值对的默认序列化和反序列化库
        properties.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
        properties.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());

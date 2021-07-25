@@ -15,7 +15,7 @@ public class ElasticsearchConfig {
     @Bean
     RestHighLevelClient elasticsearchClient() {
         ClientConfiguration configuration = ClientConfiguration.builder()
-                .connectedTo("localhost:9200")
+                .connectedTo("192.168.56.101:9200")
                 //.withConnectTimeout(Duration.ofSeconds(5))
                 //.withSocketTimeout(Duration.ofSeconds(3))
                 //.useSsl()

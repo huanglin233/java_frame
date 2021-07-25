@@ -6,5 +6,5 @@ spring:
         name: cloud-provider-zk-payment
     cloud:
        zookeeper:
-          connect-string: 127.0.0.1:2181
+          connect-string: 192.168.56.101:2181
 

@@ -51,7 +51,7 @@ public class Producer {
         // 消息实体
         ProducerRecord<String, String> record = null;
         for(int i = 0; i < 100; i++) {
-            record = new ProducerRecord<String, String>(KafkaConfig.PRODUCER_TOPIC, "key", "the value hello " + i);
+            record = new ProducerRecord<String, String>(KafkaConfig.PRODUCER_TOPIC, "key", "the then the value hello " + i);
             // 发送消息
             producer.send(record, new Callback() {
                 @Override

@@ -25,7 +25,7 @@ public class WordCount {
         // Streams应用Id
         props.put(StreamsConfig.APPLICATION_ID_CONFIG, "wordCount");
         // Kafka集群地址
-        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "172.17.0.1:9092");
+        props.put(StreamsConfig.BOOTSTRAP_SERVERS_CONFIG, "192.168.56.101:9092");
         // 指定序列化和反序列化类型
         props.put(StreamsConfig.DEFAULT_KEY_SERDE_CLASS_CONFIG, Serdes.String().getClass());
         props.put(StreamsConfig.DEFAULT_VALUE_SERDE_CLASS_CONFIG, Serdes.String().getClass());

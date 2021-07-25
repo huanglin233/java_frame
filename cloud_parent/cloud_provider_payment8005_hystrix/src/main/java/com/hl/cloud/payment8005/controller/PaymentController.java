@@ -2,6 +2,7 @@ package com.hl.cloud.payment8005.controller;
 
 import javax.annotation.Resource;
 
+import org.bouncycastle.crypto.RuntimeCryptoException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -56,10 +57,10 @@ public class PaymentController {
             @HystrixProperty(name = "fallback.enabled", value = "true"), // 服务降级是否启用,是否执行回调函数
             @HystrixProperty(name = "circuitBreaker.enabled", value ="true"), //是否开启断路路由
             @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "10"), // 请求次数,并发超过这个次数,开启短路器
-            @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "1000"), // 时间窗口
+            @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "10000"), // 时间窗口
             @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "60"), // 失败率达到多少跳闸
             @HystrixProperty(name = "circuitBreaker.forceOpen", value = "false"), // 断路器强制打开
-            @HystrixProperty(name = "metrics.rollingStats.timeInMilliseconds", value = "1000"), // 滚动时间窗设置,该时间用于断路由器判断健康是需要收集信息的持续时间
+            @HystrixProperty(name = "metrics.rollingStats.timeInMilliseconds", value = "10000"), // 滚动时间窗设置,该时间用于断路由器判断健康是需要收集信息的持续时间
             @HystrixProperty(name = "metrics.rollingStats.numBuckets", value = "10"), // 该属性用来设置滚动时间窗统计指标信息时划分"桶"的数量
             @HystrixProperty(name = "metrics.rollingPercentile.enabled", value = "false"), // 该属性用来设置对命令执行的延迟是否使用百分位数来跟踪和计算,如果设置为false,那么所有的概率要统计都将返回 -1
             @HystrixProperty(name = "metrics.rollingPercentile.timeInMilliseconds", value = "600000"), //该属性用来设置百分位统计的滚动窗口的持续时间,单位为毫秒
@@ -81,6 +82,21 @@ public class PaymentController {
         String serialNumber = IdUtil.simpleUUID();
 
         return Thread.currentThread().getName() + "\t" + "调用成功,流水号为: " + serialNumber;
+    }
+
+    @HystrixCommand(fallbackMethod = "paymentInfo_CircuitBreaker", commandProperties = {
+            @HystrixProperty(name = "circuitBreaker.enabled", value ="true"), //是否开启断路路由
+            @HystrixProperty(name = "circuitBreaker.requestVolumeThreshold", value = "10"), // 请求次数,并发超过这个次数,开启短路器
+            @HystrixProperty(name = "circuitBreaker.sleepWindowInMilliseconds", value = "10000"), // 时间窗口
+            @HystrixProperty(name = "circuitBreaker.errorThresholdPercentage", value = "1"), // 失败率达到多少跳闸
+            @HystrixProperty(name = "circuitBreaker.forceOpen", value = "false"), // 断路器强制打开
+    })
+    @GetMapping("/payment/hystrix/over/{id}")
+    public String over(@PathVariable("id") Integer id) {
+        int i = 2 / id;
+        String serialNumber = IdUtil.simpleUUID();
+
+        return Thread.currentThread().getName() + "\t" + "调用成功,流水号为: " + serialNumber + " ooo" + i;
     }
 
     public String paymentTimeoutHandler(Integer id) {

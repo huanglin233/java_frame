@@ -13,7 +13,6 @@ import com.hl.ssm.service.UserService;
 @RestController
 public class UserController {
 
-//    @Autowired
     @Reference(version = "1.0L")
     UserService userService;
 

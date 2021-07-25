@@ -3,7 +3,7 @@ server:
 eureka:
   instance:
     hostname: eureka7001.com  #eureka服务端的实例名
-  server:
+#  server:
     #enable-self-preservation: true
     #eviction-interval-timer-in-ms: 2000 #单位毫秒
   client:

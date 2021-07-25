@@ -14,6 +14,7 @@ public class PaymentController {
 
     @GetMapping("/payment/consul")
     public String paymentZk() {
+        System.out.println("do payment");
         return "spring_cloud_consul_payment : port = " + serverPort + " " + UUID.randomUUID().toString();
     }
 }

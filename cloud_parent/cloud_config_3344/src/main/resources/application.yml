@@ -12,11 +12,11 @@ spring:
             - springcloud-config
       label: master
   rabbitmq:
-    host: localhost
+    host: 192.168.56.101
     virtual-host: my_vhost
     port: 5672
-    username: admin
-    password: admin
+    username: hl
+    password: hl
 eureka:
   client:
     service-url:

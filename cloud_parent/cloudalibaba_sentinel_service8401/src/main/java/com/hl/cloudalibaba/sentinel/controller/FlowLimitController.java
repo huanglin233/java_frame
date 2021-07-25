@@ -27,6 +27,7 @@ public class FlowLimitController {
     }
 
     @GetMapping("/testC")
+    @SentinelResource(value = "testC", blockHandlerClass = CustomerBlockHandler.class, blockHandler = "handlerException2")
     public String testC() throws InterruptedException {
         Thread.sleep(10000);
         System.out.println("熔断,降级-----慢调用比例");
@@ -35,6 +36,7 @@ public class FlowLimitController {
     }
 
     @GetMapping("/testD")
+    @SentinelResource(value = "testD", blockHandlerClass = CustomerBlockHandler.class, blockHandler = "handlerException2")
     public String testD() {
         System.out.println("熔断,降级-----异常比例");
         int i = 10 / 0;

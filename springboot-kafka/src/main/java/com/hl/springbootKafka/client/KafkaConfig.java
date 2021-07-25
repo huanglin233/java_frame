@@ -6,7 +6,7 @@ import java.time.Duration;
  * kafka客户端链接相关配置信息
  */
 public class KafkaConfig {
-    public static final String   KAFKA_ADDRESS_COLLECTION         = "127.17.0.1:9092";       // kafka地址
+    public static final String   KAFKA_ADDRESS_COLLECTION         = "192.168.56.101:9092";    // kafka地址
     public static final String   CONSUMER_TOPIC                   = "test";                  // 消费者链接的topic
     public static final String   PRODUCER_TOPIC                   = "test";                  // 生产者链接的topic
     public static final String   CONSUMER_GROUP_ID                = "1";                     // groupID

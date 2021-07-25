@@ -24,7 +24,7 @@ public class TestElasticSearch4J2 {
 
     private static RestHighLevelClient client = new RestHighLevelClient(
             RestClient.builder(
-                    new HttpHost("localhost", 9200, "http")
+                    new HttpHost("192.168.56.101", 9200, "http")
             ));
     private static String indexName = "hl2";
 

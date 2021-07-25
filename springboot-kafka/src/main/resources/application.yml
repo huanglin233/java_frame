@@ -5,7 +5,7 @@ spring:
     name: springboot-kafka
   kafka:
     bootstrap-servers:
-    - 172.17.0.1:9092
+    - 192.168.25.101:9092
     # producer相关配置
     producer:
       retries: 0
@@ -27,7 +27,7 @@ spring:
       value-deserializer: org.apache.kafka.common.serialization.StringDeserializer
     streams:
       application-id: test-kafka-stream # 默认取springboot应用名
-      bootstrap-servers: 172.17.0.1:9092 # 会覆盖 spring.kafka.bootstrap-servers 配置
+      bootstrap-servers: 192.168.25.101:9092 # 会覆盖 spring.kafka.bootstrap-servers 配置
 #      auto-startup: true
       properties:
         default:

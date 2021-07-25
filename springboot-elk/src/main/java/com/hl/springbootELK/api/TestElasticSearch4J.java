@@ -15,7 +15,7 @@ public class TestElasticSearch4J {
 
     private static RestHighLevelClient client = new RestHighLevelClient(
             RestClient.builder(
-                    new HttpHost("localhost", 9200, "http")
+                    new HttpHost("192.168.56.101", 9200, "http")
             ));
 
     public static void main(String[] args) throws IOException {

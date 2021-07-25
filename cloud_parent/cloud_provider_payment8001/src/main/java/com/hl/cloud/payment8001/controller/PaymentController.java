@@ -83,7 +83,7 @@ public class PaymentController {
     @GetMapping("/payment/openfegin/timeout")
     public String paymentFeginTimeOut() {
         try {
-            TimeUnit.SECONDS.sleep(1);
+            TimeUnit.SECONDS.sleep(1001);
         } catch (InterruptedException e) {
             e.printStackTrace();
         }
