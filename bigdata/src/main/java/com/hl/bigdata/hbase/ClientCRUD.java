@@ -19,6 +19,7 @@ import org.apache.hadoop.hbase.client.ConnectionFactory;
 import org.apache.hadoop.hbase.client.Delete;
 import org.apache.hadoop.hbase.client.Get;
 import org.apache.hadoop.hbase.client.HTable;
+import org.apache.hadoop.hbase.client.Increment;
 import org.apache.hadoop.hbase.client.Put;
 import org.apache.hadoop.hbase.client.Result;
 import org.apache.hadoop.hbase.client.ResultScanner;
@@ -641,7 +642,7 @@ public class ClientCRUD {
 	}
 
 	/**
-	 * 自定义顾虑器
+	 * 自定义过滤器
 	 * @throws Exception
 	 */
 	@Test
@@ -649,12 +650,39 @@ public class ClientCRUD {
 		try {
 			HTable         table  = (HTable) conn.getTable(TableName.valueOf("test:t2"));
 			Scan           scan   = new Scan();
-			SelfLessFilter filter = new SelfLessFilter(Bytes.toBytes(11000));
+			SelfLessFilter filter = new SelfLessFilter(Bytes.toBytes(11));
 			scan.setFilter(filter);
 			scannerOutput(table.getScanner(scan));
 		} catch (Exception e) {
 			e.printStackTrace();
 		}
+	}
+
+	/**
+	 * 添加新的一列
+	 * @throws Exception
+	 */
+	@Test
+	public void counter1() throws Exception {
+		Table t = conn.getTable(TableName.valueOf("test:t2"));
+		long  c = t.incrementColumnValue(Bytes.toBytes("row1"), Bytes.toBytes("cf1"), Bytes.toBytes("no2"), 20);
+
+		System.out.println(c);
+	}
+
+	/**
+	 * 新增多列
+	 * @throws Exception
+	 */
+	@Test
+	public void counter2() throws Exception {
+		Table     t    = conn.getTable(TableName.valueOf("test:t2"));
+		Increment incr = new Increment(Bytes.toBytes("row1"));
+		incr.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("no4"), 40);
+		incr.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("no5"), 50);
+		incr.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("no6"), 60);
+		incr.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("no7"), 70);
+		t.increment(incr);
 	}
 
 	private static void scannerOutput(ResultScanner result) {
