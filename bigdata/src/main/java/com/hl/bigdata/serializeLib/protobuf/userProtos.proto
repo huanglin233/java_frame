@@ -1,0 +1,11 @@
+syntax="proto3";
+package vo;
+
+option java_package = "com.hl.bigdata.serializeLib.vo";
+option java_outer_classname = "UserProtos";
+
+message User{
+    string name = 1;
+    int32  favoriteNumber = 2;
+    string favoriteColor = 3;
+}
