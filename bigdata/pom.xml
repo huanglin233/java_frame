@@ -96,6 +96,23 @@
             <artifactId>scala-library</artifactId>
             <version>2.13.2</version>
         </dependency>
+		<!-- Scala 2.13之后，并行集合模块变成了外部库-->
+		<dependency>
+			<groupId>org.scala-lang.modules</groupId>
+			<artifactId>scala-parallel-collections_2.13</artifactId>
+			<version>0.2.0</version>
+		</dependency>
+		<!--flume -->
+		<dependency>
+			<groupId>org.apache.flume</groupId>
+			<artifactId>flume-ng-core</artifactId>
+			<version>1.9.0</version>
+		</dependency>
+		<dependency>
+			<groupId>mysql</groupId>
+			<artifactId>mysql-connector-java</artifactId>
+			<version>5.1.46</version>
+		</dependency>
 	</dependencies>
 	<build>
 		<plugins>
