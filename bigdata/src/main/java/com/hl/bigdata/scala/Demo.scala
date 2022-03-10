@@ -554,6 +554,84 @@ class Demo {
     val rf2 = List(1, 2, 3, 5, "six") collect f3;
     println(rf2);
   }
+  // 高阶函数
+  def high_func(): Unit = {
+    // 作为参数的高阶函数
+    def plus(x : Int) = 3 + x;
+    val res = Array(1, 2, 3, 4).map(plus(_));
+    println(res.mkString(","));
+
+    // 匿名函数
+    val triple = (x : Double) => 3 * x;
+    println(triple(3));
+
+    // 能够接受函数作为参数的函数，叫做高阶函数。
+    def fun1(f : Double => Double) = f(10);
+    def fun2(x : Double) = x - 7;
+    val res2 = fun1(fun2);
+    println(res2);
+    // 高阶函数同样可以返回函数类型
+    def fun3(x : Int) = (y : Int) => x - y;
+    val res3 = fun3(3)(5);
+    println(res3);
+
+    // 参数(类型)推断
+    // 传入函数表达式
+    println(fun1((x : Double) => 3 * x));
+    // 参数推断省区类型信息
+    println(fun1((x) => 3 + x));
+    // 单个参数可以省去括号
+    println(fun1(x => 5 + x));
+    // 如果变量值在=>右边只出现一次，可以使用_代替
+    println(fun1(3 * _));
+
+    // 闭包, 闭包就是一个函数把外部的那些不属于自己的对象也包含(闭合)进来。
+    def fun4(x : Int) = (y : Int) => x -y;
+    val f1 = fun4(10);
+    val f2 = fun4(10);
+/*    1) 匿名函数(y: Int)=> x - y嵌套在minusxy函数中。
+    2) 匿名函数(y: Int)=> x - y使用了该匿名函数之外的变量x
+    3) 函数fun4返回了引用了局部变量的匿名函数
+    f1, f2这两个函数就叫闭包。*/
+    println(f1(3) + f2(2));
+
+    // 柯里化， 函数编程中，接受多个参数的函数都可以转化为接受单个参数的函数，这个转化过程就叫柯里化，柯里化就是证明了函数只需要一个参数而已
+    def fun5(x : Int, y : Int) = x * y;
+    println(fun5(3, 3));
+    def fun6(x : Int) = (y : Int) => x * y;
+    println(fun6(3)(5));
+    def fun7(x : Int)(y : Int) = x * y;
+    println(fun7(3)(3));
+
+    /* 控制抽象
+    1、参数是函数。
+    2、函数参数没有输入值也没有返回值。*/
+    def fun_thread1(f1 :  => Unit) : Unit = {
+      new Thread{
+        override def run(): Unit = {
+          f1
+        }
+      }.start();
+    }
+
+    fun_thread1{
+      println("run 1");
+      Thread.sleep(5000);
+      println("run 2")
+    }
+
+    def fun_thread2(f2 : => Boolean)(block : => Unit): Unit = {
+      if(!f2) {
+        block
+        fun_thread2(f2)(block);
+      }
+    }
+    var x = 10;
+    fun_thread2(x == 0) {
+      x -= 1;
+      println(x);
+    }
+  }
 }
 
 object Demo{
@@ -562,6 +640,6 @@ object Demo{
     val test = new Test();
     println(test.ss());
     var d = new Demo();
-    d.match_();
+    d.high_func();
   }
 }
