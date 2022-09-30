@@ -94,7 +94,7 @@
 		<dependency>
             <groupId>org.scala-lang</groupId>
             <artifactId>scala-library</artifactId>
-            <version>2.13.2</version>
+            <version>2.13.9</version>
         </dependency>
 		<!-- Scala 2.13之后，并行集合模块变成了外部库-->
 		<dependency>
