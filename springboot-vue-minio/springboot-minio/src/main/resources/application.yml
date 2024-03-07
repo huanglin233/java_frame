@@ -1,0 +1,14 @@
+server:
+  port: 9001
+
+minio:
+  endpoint: http://192.168.56.101:9000
+  accessKey: 1DQF2AHLMVZ0Z71DWVD2
+  secretKey: pq9dogXt2owsW5TlVNssifLySvFUjnSTXvwi1y3f
+
+spring:
+  servlet:
+    multipart:
+      enabled: true
+      max-file-size: 100MB
+      max-request-size: 150MB

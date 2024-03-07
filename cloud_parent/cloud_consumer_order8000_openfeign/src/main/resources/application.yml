@@ -1,0 +1,16 @@
+server:
+  port: 8000
+spring:
+  application:
+    name: openfeign-consumer-order
+eureka:
+  client:
+    register-with-eureka: false
+    service-url:
+      defaultZone: http://localhost:7001/eureka, http://localhost:7002/eurek
+ribbon:
+  ReadTimeout:  3000 #指建立链接所需要的时间
+  ConnectTimeout: 1000 #指建立链接后获取资源所需要的时间
+logging:
+  level:
+    com.hl.cloud.order8000.service.PaymentService: debug

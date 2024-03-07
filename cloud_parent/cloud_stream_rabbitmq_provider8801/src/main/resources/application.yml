@@ -1,0 +1,28 @@
+server:
+  port: 8801
+
+spring:
+  application:
+    name: cloud-stream-provider
+  cloud:
+    stream:
+      binders:
+        defaultRabbit:
+          type: rabbit # 消息组件类型
+          environment:
+            spring:
+              rabbitmq:
+                host: 192.168.56.101
+                virtual-host: my_vhost
+                port: 5672
+                username: hl
+                password: hl
+      bindings:
+        output: # 这个名字是一个通道的名称
+          destination: streamExchange # 表示要使用的exchange的名称定义
+          content-type: application/json # 设置消息类型,设置为json类型;文本使用 text/plain 
+          binder: defaultRabbit # 设置要绑定的消息服务的具体设置
+eureka:
+  client:
+    service-url:
+      defaultZone: http://localhost:7001/eureka

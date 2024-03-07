@@ -1,0 +1,11 @@
+<?xml version="1.0"?>
+<configuration>
+	<property>
+		<name>fs.defaultFS</name>
+		<value>hdfs://s100:8020/</value>
+	</property>
+	<property>
+		<name>io.map.index.interval</name>
+		<value>25</value>
+	</property>
+</configuration>

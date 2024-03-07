@@ -1,0 +1,42 @@
+server:
+  port: 9527
+spring:
+  application:
+    name: cloud_gateway
+  cloud:
+    gateway:
+      discovery:
+        locator:
+          enabled: true # 开启从注册中心动态创建路由的功能,利用微服务名进行路由
+          lower-case-service-id: true # 允许为小写
+      routes:
+      - id: payment-8001 # 路由ID,没有固定规则但要求唯一
+#        uri: http://localhost:8001
+        uri: lb://cloud-payment-service #注意不能使用下划线
+        predicates:
+          - Path=/payment/get/** #断言,访问gatway的路径一致相匹配的进行路由
+#          - After=2021-02-13T15:15:37.485+08:00[Asia/Shanghai] # 在指定的时间之后允许访问
+#          - Before=2021-02-13T15:15:37.485+08:00[Asia/Shanghai] # 在指定的时间之前允许访问
+#          - Between=2021-02-01T15:15:37.485+08:00[Asia/Shanghai],2021-02-13T15:15:37.485+08:00[Asia/Shanghai] #在指定的时间段内允许访问
+#          - Cookie=username,hl #带上cookie的指定值如suername=hl允许访问
+#          - Header=X-Request-Id, \d+ # 请求头要有X-Request-Id,属性为整数才允许访问
+#          - Host=localhost #只有指定主机的才可以访问
+#          - Method=Post #只有指定请求才可以访问,比如get请求..
+#          - Query=username, \d+ # 必须带有请求参数才可以访
+        filters:
+#        - AddRequestParameter=X-Request-Id,2021 # 过滤工厂会在匹配到的请求上加上一对指定请求头
+
+      - id: payment-8002 # 路由ID,没有固定规则但要求唯一
+#        uri: http://localhost:8002
+        uri: lb://cloud-payment-service
+        predicates:
+          - Path=/payment/lb/** #断言,访问gatway的路径一致相匹配的进行路由
+
+eureka:
+  instance:
+    hostname: cloud_gateway_service
+  client:
+      register-with-eureka: true
+      fetchRegistry: true
+      service-url:
+             defaultZone: http://localhost:7001/eureka

@@ -1,0 +1,10 @@
+server:
+    port: 8003
+spring:
+    application:
+        #服务别名-----注册到zookeeper注册中心的名称
+        name: cloud-provider-zk-payment
+    cloud:
+       zookeeper:
+          connect-string: 192.168.56.101:2181
+

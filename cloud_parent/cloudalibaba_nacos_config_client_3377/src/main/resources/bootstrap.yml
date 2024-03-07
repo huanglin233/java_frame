@@ -1,0 +1,18 @@
+server:
+  port: 3377
+spring:
+  application:
+    name: nacos-config-clinet
+  cloud:
+    nacos:
+      discovery:
+        server-addr: 192.168.56.101:8848 # nacos服务注册中心
+        namespace: 2e87f3e1-2549-4cbc-b1fa-7f186112b912
+      config:
+        server-addr: 192.168.56.101:8848 # nacos作为配置中心地
+#        server-addr: localhost:7788 # 集群
+        file-extension: yaml # 设置为yaml格式
+#        prefix: nacos-config-clinet #文件名,默认是项目名
+        group: TEST_GROUP
+        namespace: 2e87f3e1-2549-4cbc-b1fa-7f186112b912
+#        namespace: 84d72d61-e3c7-40f8-9e3d-eb672db569a4 # 集群

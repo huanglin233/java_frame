@@ -1,0 +1,27 @@
+<?xml version="1.0"?>
+<configuration>
+	<property>
+		<name>yarn.resourcemanager.hostname</name>
+		<value>s100</value>
+	</property>
+	<property>
+		<name>yarn.nodemanager.aux-services</name>
+		<value>mapreduce_shuffle</value>
+	</property>
+	<property>
+	<name>yarn.application.classpath</name>
+		<value>
+			/soft/hadoop/etc/*,
+			/soft/hadoop/etc/hadoop/*,
+			/soft/hadoop/lib/*,
+			/soft/hadoop/share/hadoop/common/*,
+			/soft/hadoop/share/hadoop/common/lib/*,
+			/soft/hadoop/share/hadoop/mapreduce/*,
+			/soft/hadoop/share/hadoop/mapreduce/lib/*,
+			/soft/hadoop/share/hadoop/hdfs/*,
+			/soft/hadoop/share/hadoop/hdfs/lib/*,
+			/soft/hadoop/share/hadoop/yarn/*,
+			/soft/hadoop/share/hadoop/yarn/lib/*
+		</value>
+	</property>
+</configuration>

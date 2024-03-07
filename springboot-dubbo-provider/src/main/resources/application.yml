@@ -1,0 +1,15 @@
+server:
+  port: 8083
+dubbo:
+  application:
+    name: dubbo-provider
+  registry:
+    address: zookeeper://localhost:2181
+  metadata-report:
+    address: zookeeper://localhost:2181
+  protocol:
+    name: dubbo
+    port: 20881
+  scan:
+    base-packages:
+    - com.hl.dubbo.api

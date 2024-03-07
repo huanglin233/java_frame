@@ -1,0 +1,130 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
+	<modelVersion>4.0.0</modelVersion>
+	<groupId>com.hl.cloud</groupId>
+	<artifactId>cloud_parent</artifactId>
+	<version>0.0.1-SNAPSHOT</version>
+	<packaging>pom</packaging>
+	<name>cloud_parent</name>
+	<description>cloud父项目依赖管理</description>
+
+	<!--统一管理jar包版本 -->
+	<properties>
+		<project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
+		<maven.compiler.source>12</maven.compiler.source>
+		<maven.compiler.target>12</maven.compiler.target>
+		<junit.version>4.12</junit.version>
+		<lombok.version>1.18.10</lombok.version>
+		<log4j.version>1.2.17</log4j.version>
+		<mysql.version>8.0.18</mysql.version>
+		<druid.version>1.1.16</druid.version>
+		<mybatis.spring.boot.version>2.1.1</mybatis.spring.boot.version>
+		<seata.version>1.4.1</seata.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<dependency>
+				<groupId>org.apache.maven.plugins</groupId>
+				<artifactId>maven-project-info-reports-plugin</artifactId>
+				<version>3.0.0</version>
+			</dependency>
+			<!--spring boot 2.2.2 -->
+			<dependency>
+				<groupId>org.springframework.boot</groupId>
+				<artifactId>spring-boot-dependencies</artifactId>
+				<version>2.2.2.RELEASE</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!--spring cloud Hoxton.SR1 -->
+			<dependency>
+				<groupId>org.springframework.cloud</groupId>
+				<artifactId>spring-cloud-dependencies</artifactId>
+				<version>Hoxton.SR1</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+
+			<!--spring cloud 阿里巴巴 -->
+			<dependency>
+				<groupId>com.alibaba.cloud</groupId>
+				<artifactId>spring-cloud-alibaba-dependencies</artifactId>
+				<version>2.1.0.RELEASE</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+			<!--mysql -->
+			<dependency>
+				<groupId>mysql</groupId>
+				<artifactId>mysql-connector-java</artifactId>
+				<version>${mysql.version}</version>
+				<scope>runtime</scope>
+			</dependency>
+			<!-- druid -->
+			<dependency>
+				<groupId>com.alibaba</groupId>
+				<artifactId>druid</artifactId>
+				<version>${druid.version}</version>
+			</dependency>
+
+			<!--mybatis -->
+			<dependency>
+				<groupId>org.mybatis.spring.boot</groupId>
+				<artifactId>mybatis-spring-boot-starter</artifactId>
+				<version>${mybatis.spring.boot.version}</version>
+			</dependency>
+			<!--junit -->
+			<dependency>
+				<groupId>junit</groupId>
+				<artifactId>junit</artifactId>
+				<version>${junit.version}</version>
+			</dependency>
+			<!--log4j -->
+			<dependency>
+				<groupId>log4j</groupId>
+				<artifactId>log4j</artifactId>
+				<version>${log4j.version}</version>
+			</dependency>
+			<dependency>
+				<groupId>io.seata</groupId>
+				<artifactId>seata-all</artifactId>
+				<version>${seata.version}</version>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+	<modules>
+		<module>cloud_api_commons</module>
+		<module>cloud_eureka_server7001</module>
+		<module>cloud_eureka_server7002</module>
+		<module>cloud_consumer_order8000</module>
+		<module>cloud_provider_payment8001</module>
+		<module>cloud_provider_payment8002</module>
+		<module>cloud_provider_payment8003_zk</module>
+		<module>cloud_consumer_order8000_zk</module>
+		<module>cloud_provider_payment8004_consul</module>
+		<module>cloud_consumer_order8000_consul</module>
+		<module>cloud_consumer_order8000_openfeign</module>
+		<module>cloud_provider_payment8004_hystrix</module>
+		<module>cloud_provider_payment8005_hystrix</module>
+		<module>cloud_consumer_order8000_hystrix</module>
+		<module>cloud_hystrixdashboard_9001</module>
+		<module>cloud_gateway_9527</module>
+		<module>cloud_config_3344</module>
+		<module>cloud_config_client_3355</module>
+		<module>cloud_config_client_3366</module>
+		<module>cloud_stream_rabbitmq_provider8801</module>
+		<module>cloud_stream_rabbitmq_consumer8802</module>
+		<module>cloud_stream_rabbitmq_consumer8803</module>
+		<module>cloudalibaba_provider_payment9001</module>
+		<module>cloudalibaba_provider_payment9002</module>
+		<module>cloudalibaba_consumer_nacos_order8000</module>
+		<module>cloudalibaba_nacos_config_client_3377</module>
+		<module>cloudalibaba_sentinel_service8401</module>
+		<module>cloudalibaba_seata_order_service2001</module>
+		<module>cloudalibaba_seata_storage_service2002</module>
+		<module>cloudalibaba_seata_account_service2003</module>
+	</modules>
+</project>
