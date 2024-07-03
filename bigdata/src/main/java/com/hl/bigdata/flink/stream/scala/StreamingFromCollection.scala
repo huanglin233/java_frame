@@ -1,13 +1,16 @@
 package com.hl.bigdata.flink.stream.scala
 
-import com.hl.bigdata.flink.stream.scala.source.{MySourceNonParallelism, MySourceParallelism}
+import com.hl.bigdata.flink.stream.scala.source.{MySourceNonParallelism, MySourceParallelism, MySourceWorld}
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.scala._
-import org.apache.flink.streaming.api.TimeCharacteristic
+import org.apache.flink.configuration.Configuration
+import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
 import org.apache.flink.streaming.api.datastream.DataStreamSource
+import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.util.Collector
 import org.junit.Test
@@ -17,7 +20,8 @@ import org.junit.Test
  * @date 2024/03/08 17:34
  */
 class StreamingFromCollection {
-  val env = StreamExecutionEnvironment.createLocalEnvironment()
+  val conf:Configuration = new Configuration();
+  val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)
 
   @Test
   def streamDemo(): Unit = {
@@ -149,5 +153,26 @@ class StreamingFromCollection {
     mapStream.timeWindowAll(Time.seconds(2)).sum(0).print().setParallelism(1);
 
     env.execute("broadcast")
+  }
+
+  @Test
+  def checkPoint(): Unit = {
+    env.enableCheckpointing(1000);
+    env.getCheckpointConfig.setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+    env.getCheckpointConfig.setMinPauseBetweenCheckpoints(500);
+    env.getCheckpointConfig.setCheckpointTimeout(600);
+    env.getCheckpointConfig.setMaxConcurrentCheckpoints(1);
+    env.getCheckpointConfig.enableExternalizedCheckpoints(ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION)
+    val dataStream = env.addSource(new MySourceWorld).setParallelism(1)
+    dataStream.flatMap(_.split("\\s"))
+      .map((_, 1))
+      .keyBy(e => e._1)
+      .window(SlidingProcessingTimeWindows.of(Time.seconds(2), Time.seconds(1)))
+      .reduce((a, b) => {
+        (a._1, a._2 + b._2)
+      })
+      .print()
+
+    env.execute("source window count")
   }
 }

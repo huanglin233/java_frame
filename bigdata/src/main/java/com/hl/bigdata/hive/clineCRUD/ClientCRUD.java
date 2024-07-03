@@ -18,7 +18,7 @@ public class ClientCRUD {
     static {
         try {
             Class.forName("org.apache.hive.jdbc.HiveDriver");
-            conn = DriverManager.getConnection("jdbc:hive2://s100:10000/hi_tydic_loc", "APP", "mine");
+            conn = DriverManager.getConnection("jdbc:hive2://s100:10000/hi_loc", "APP", "mine");
         } catch (Exception e) {
             e.printStackTrace();
         }
@@ -71,7 +71,7 @@ public class ClientCRUD {
     }
 
     private static void select2() throws Exception {
-        PreparedStatement ps = conn.prepareStatement("select * from hi_tydic_loc.sk_int_user_loc_cell_flow_q limit 10");
+        PreparedStatement ps = conn.prepareStatement("select * from hi_.sk_int_user_loc_cell_flow_q limit 10");
         ResultSet resultSet = ps.executeQuery();
         while(resultSet.next()) {
             System.out.println("msisdn = " + resultSet.getString("msisdn"));

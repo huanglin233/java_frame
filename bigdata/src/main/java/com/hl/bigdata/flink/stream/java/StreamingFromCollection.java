@@ -2,14 +2,22 @@ package com.hl.bigdata.flink.stream.java;
 
 import com.hl.bigdata.flink.stream.java.source.MySourceNonParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceParallelism;
+import com.hl.bigdata.flink.stream.java.source.MySourceWorld;
+import com.hl.bigdata.flink.stream.vo.WordWithCount;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
+import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
+import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.*;
+import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
@@ -24,7 +32,8 @@ import java.util.List;
  */
 public class StreamingFromCollection {
 
-    StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    static Configuration conf = new Configuration();
+    StreamExecutionEnvironment env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf);
 
     @Test
     public void streamDemo() throws Exception {
@@ -226,7 +235,68 @@ public class StreamingFromCollection {
     }
 
     @Test
-    public void checkPoint() {
-        //
+    public void checkPoint() throws Exception{
+        // 每隔1000 ms进行启动一个检查点 --设置checkpoint得周期
+        env.enableCheckpointing(1000);
+        env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
+        // 设置检查点之间得间隔时间
+        env.getCheckpointConfig().setMinPauseBetweenCheckpoints(500);
+        // 设置检查点执行的时间,时间内没有执行完则丢弃
+        env.getCheckpointConfig().setCheckpointTimeout(6000);
+        // 同一时间只允许一个检查点
+        env.getCheckpointConfig().setMaxConcurrentCheckpoints(1);
+        // flink处理程序cancel后,会保留checkpoint数据
+        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.RETAIN_ON_CANCELLATION);
+        // flink处理程序被cancel后,会删除checkpoint数据,只有执行失败得时候才会保存checkpoint数据
+//        env.getCheckpointConfig().enableExternalizedCheckpoints(CheckpointConfig.ExternalizedCheckpointCleanup.DELETE_ON_CANCELLATION);
+
+        // 设置checkpoint存储方式 --可flink客户端flink-conf.yaml配置文件中进行全局配置
+//        env.setStateBackend(new MemoryStateBackend());
+//        env.setStateBackend(new FsStateBackend("/hdfs/...."));
+        DataStreamSource<String>  dateStream = env.addSource(new MySourceWorld());
+        DataStream<WordWithCount> sum        = dateStream.flatMap(new FlatMapFunction<String, WordWithCount>() {
+                    @Override
+                    public void flatMap(String s, Collector<WordWithCount> collector) throws Exception {
+                        String[] strs = s.split("\\s");
+                        for (String word : strs) {
+                            collector.collect(new WordWithCount(word, 1));
+                        }
+                    }
+                }).keyBy(e -> e.word)
+                .window(SlidingProcessingTimeWindows.of(Time.seconds(2), Time.seconds(1))) // 指定时间窗口为2秒,指定时间间隔为1秒
+//                        .sum("count");
+                .reduce(new ReduceFunction<WordWithCount>() {
+                    @Override
+                    public WordWithCount reduce(WordWithCount wordWithCount, WordWithCount t1) throws Exception {
+                        return new WordWithCount(wordWithCount.word, wordWithCount.count + t1.count);
+                    }
+                });
+        sum.print().setParallelism(1);
+        env.execute("source window count");
+    }
+
+    @Test
+    public void myParition() throws Exception {
+        env.setParallelism(2);
+
+        DataStreamSource<Integer> dataStream = env.addSource(new MySourceNonParallelism());
+        // 把long数据转换成tuple类型
+        SingleOutputStreamOperator<Integer> map = dataStream.map(new MapFunction<Integer, Tuple1<Integer>>() {
+                    @Override
+                    public Tuple1<Integer> map(Integer integer) throws Exception {
+                        return new Tuple1<Integer>(integer);
+                    }
+                }).partitionCustom(new MyPartition(), 0)
+                .map(new MapFunction<Tuple1<Integer>, Integer>() {
+                    @Override
+                    public Integer map(Tuple1<Integer> integerTuple1) throws Exception {
+                        System.out.println("当前线程id: " + Thread.currentThread().getId() + ",value: " + integerTuple1);
+
+                        return integerTuple1.getField(0);
+                    }
+                });
+        map.print().setParallelism(1);
+
+        env.execute("myParition");
     }
 }
