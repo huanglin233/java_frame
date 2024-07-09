@@ -2,12 +2,17 @@ package com.hl.bigdata.flink.stream.java;
 
 import com.hl.bigdata.flink.stream.java.source.MySourceNonParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceParallelism;
+import com.hl.bigdata.flink.stream.java.source.MySourceTime;
 import com.hl.bigdata.flink.stream.java.source.MySourceWorld;
 import com.hl.bigdata.flink.stream.vo.WordWithCount;
+import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
+import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
+import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.streaming.api.CheckpointingMode;
@@ -15,16 +20,23 @@ import org.apache.flink.streaming.api.TimeCharacteristic;
 import org.apache.flink.streaming.api.datastream.*;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
+import org.apache.flink.streaming.api.watermark.Watermark;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.junit.Test;
 
-import java.util.Arrays;
-import java.util.List;
+import javax.annotation.Nullable;
+import java.text.SimpleDateFormat;
+import java.time.Duration;
+import java.util.*;
 
 /**
  * @author huanglin
@@ -298,5 +310,175 @@ public class StreamingFromCollection {
         map.print().setParallelism(1);
 
         env.execute("myParition");
+    }
+
+    @Test
+    public void streamingWindowWatermark() throws Exception {
+        // 设置使用eventtime,默认是使用processingtime
+        env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+        DataStreamSource<String> dataStream = env.addSource(new MySourceTime());
+        SingleOutputStreamOperator<Tuple2<String, Long>> map = dataStream.map(new MapFunction<String, Tuple2<String, Long>>() {
+            @Override
+            public Tuple2<String, Long> map(String s) throws Exception {
+                String[] split = s.split(",");
+                return new Tuple2<>(split[0], Long.parseLong(split[1]));
+            }
+        });
+
+        // 内置有序流的watermark生成器
+//        map.assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple2<String, Long>>forMonotonousTimestamps()
+//                .withTimestampAssigner(new SerializableTimestampAssigner<Tuple2<String, Long>>() {
+//
+//                    /**
+//                     * 获取时间戳
+//                     * @param tuple2
+//                     * @param l
+//                     * @return
+//                     */
+//                    @Override
+//                    public long extractTimestamp(Tuple2<String, Long> tuple2, long l) {
+//                        return tuple2.f1;
+//                    }
+//        }));
+        // 内置乱序流的watermark生成器
+//        map.assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple2<String, Long>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+//                .withTimestampAssigner(new SerializableTimestampAssigner<Tuple2<String, Long>>() {
+//
+//                    @Override
+//                    public long extractTimestamp(Tuple2<String, Long> tuple2, long l) {
+//                        return tuple2.f1;
+//                    }
+//                }));
+
+//        SingleOutputStreamOperator<Tuple2<String, Long>> watermark = map.assignTimestampsAndWatermarks(new MyWatermark());
+
+        SingleOutputStreamOperator<Tuple2<String, Long>> watermark = map.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<String, Long>>() {
+
+            Long  currentMaxTimestamp    = 0L;
+            final Long maxOutOfOrderness = 1000L; // 最大允许乱序时间10s
+
+            SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
+
+            /**
+             * 定义水位线watermark的生成
+             * 默认100ms调用一次
+             * @return
+             */
+            @Nullable
+            @Override
+            public Watermark getCurrentWatermark() {
+                return new Watermark(currentMaxTimestamp - maxOutOfOrderness);
+            }
+
+            /**
+             * 解析提取
+             * @param stringLongTuple2
+             * @param l
+             * @return
+             */
+            @Override
+            public long extractTimestamp(Tuple2<String, Long> tuple2, long l) {
+                Long f1 = tuple2.f1;
+                currentMaxTimestamp = Math.max(f1, currentMaxTimestamp);
+                Long id = Thread.currentThread().getId();
+                System.out.println("线程id: " + id + ",key: " + tuple2.f0 + ",eventime: [" + tuple2.f1 + "|" + sdf.format(tuple2.f1) + "], currentMaxTimestamp: [" +
+                        currentMaxTimestamp + "|" + sdf.format(currentMaxTimestamp) + "],watermark: [" + getCurrentWatermark().getTimestamp() + "|"
+                        + sdf.format(getCurrentWatermark().getTimestamp()) + "]");
+
+                return f1;
+            }
+        });
+
+        SingleOutputStreamOperator<String> window = watermark.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(3))) // 按照消息event分窗口
+                .apply(new WindowFunction<Tuple2<String, Long>, String, Tuple, TimeWindow>() {
+
+                    /**
+                     * 对窗口内的数据进行排序
+                     * @param tuple
+                     * @param timeWindow
+                     * @param iterable
+                     * @param collector
+                     * @throws Exception
+                     */
+                    @Override
+                    public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple2<String, Long>> iterable, Collector<String> collector) throws Exception {
+                        String     key  = tuple.toString();
+                        List<Long> list = new ArrayList<>();
+                        Iterator<Tuple2<String, Long>> iterator = iterable.iterator();
+                        while (iterator.hasNext()) {
+                            Tuple2<String, Long> next = iterator.next();
+                            list.add(next.f1);
+                        }
+                        Collections.sort(list);
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                        if(!list.isEmpty()) {
+                            String ret = key + "," + list.size() + ","
+                                    + sdf.format(list.get(0)) + ","
+                                    + sdf.format(list.get(list.size() - 1))
+                                    + sdf.format(timeWindow.getStart())
+                                    + ',' + sdf.format(timeWindow.getEnd());
+
+                            collector.collect(ret);
+                        }
+                    }
+                });
+        window.print();
+
+        env.execute("eventtime-watermark");
+    }
+
+    @Test
+    public void streamingWindowWatermark2() throws Exception {
+        DataStreamSource<String> dataStream = env.addSource(new MySourceTime());
+        SingleOutputStreamOperator<Tuple2<String, Long>> map = dataStream.map(new MapFunction<String, Tuple2<String, Long>>() {
+            @Override
+            public Tuple2<String, Long> map(String s) throws Exception {
+                String[] split = s.split(",");
+
+                return new Tuple2<>(split[0], Long.valueOf(split[1]));
+            }
+        });
+
+        SingleOutputStreamOperator<Tuple2<String, Long>> watermark = map.assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple2<String, Long>>forBoundedOutOfOrderness(Duration.ofSeconds(10))
+                .withTimestampAssigner(new SerializableTimestampAssigner<Tuple2<String, Long>>() {
+                    @Override
+                    public long extractTimestamp(Tuple2<String, Long> tuple2, long l) {
+                        return tuple2.f1;
+                    }
+                }));
+        OutputTag<Tuple2<String, Long>>    outputTag = new OutputTag<Tuple2<String, Long>>("late-data"){};
+        SingleOutputStreamOperator<String> window    = watermark.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+                .allowedLateness(Time.seconds(5)) // 允许迟到5s
+                .sideOutputLateData(outputTag)
+                .apply(new WindowFunction<Tuple2<String, Long>, String, Tuple, TimeWindow>() {
+                    @Override
+                    public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple2<String, Long>> iterable, Collector<String> collector) throws Exception {
+                        String key = tuple.toString();
+                        List<Long> list = new ArrayList<>();
+                        Iterator<Tuple2<String, Long>> iterator = iterable.iterator();
+                        while (iterator.hasNext()) {
+                            Tuple2<String, Long> next = iterator.next();
+                            list.add(next.f1);
+                        }
+                        Collections.sort(list);
+                        SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
+                        if (!list.isEmpty()) {
+                            String ret = key + "," + list.size() + ","
+                                    + sdf.format(list.get(0)) + ","
+                                    + sdf.format(list.get(list.size() - 1))
+                                    + sdf.format(timeWindow.getStart())
+                                    + ',' + sdf.format(timeWindow.getEnd());
+
+                            collector.collect(ret);
+                        }
+                    }
+                });
+        SideOutputDataStream<Tuple2<String, Long>> sideOutput = window.getSideOutput(outputTag);
+        sideOutput.print();
+        window.print();
+
+        env.execute("watermark");
     }
 }

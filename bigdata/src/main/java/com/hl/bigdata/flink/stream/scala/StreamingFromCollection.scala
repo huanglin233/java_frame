@@ -1,19 +1,27 @@
 package com.hl.bigdata.flink.stream.scala
 
-import com.hl.bigdata.flink.stream.scala.source.{MySourceNonParallelism, MySourceParallelism, MySourceWorld}
+import com.hl.bigdata.flink.stream.scala.source.{MySourceNonParallelism, MySourceParallelism, MySourceTime, MySourceWorld}
 import org.apache.flink.api.common.functions.MapFunction
+import org.apache.flink.api.common.eventtime._
+import org.apache.flink.api.common.typeinfo.TypeInformation
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.streaming.api.datastream.DataStreamSource
+import org.apache.flink.streaming.api.datastream.{DataStreamSource, SingleOutputStreamOperator}
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
+import org.apache.flink.streaming.api.functions.windowing.WindowFunction
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows
+import org.apache.flink.streaming.api.windowing.assigners.{SlidingProcessingTimeWindows, TumblingEventTimeWindows}
 import org.apache.flink.streaming.api.windowing.time.Time
+import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.util.Collector
+import org.apache.flink.api.java.tuple.Tuple
 import org.junit.Test
+
+import java.time.Duration
+import java.text.SimpleDateFormat
 
 /**
  * @author huanglin
@@ -174,5 +182,63 @@ class StreamingFromCollection {
       .print()
 
     env.execute("source window count")
+  }
+
+  @Test
+  def myParition() : Unit = {
+    env.setParallelism(1);
+    val dataStream = env.addSource(new MySourceNonParallelism).setParallelism(1);
+    val dataMap = dataStream.map(e => Tuple1(e));
+    val partition = dataMap.partitionCustom(new MyPartition, 0)
+      .map(e => {
+        println("当前线程id: " + Thread.currentThread().getId + ",value=" + e._1);
+        e._1
+      });
+    partition.print().setParallelism(1);
+
+    env.execute("myParition");
+  }
+
+  @Test
+  def streamingWindowWatermark() : Unit = {
+    env.setStreamTimeCharacteristic(TimeCharacteristic.EventTime);
+    val dataStream = env.addSource(new MySourceTime).setParallelism(1);
+    val mapData    = dataStream.map(e => {
+      val str: Array[String] = e.split(",");
+      Tuple2(str(0), str(1).toLong)
+    })
+    val watermark = mapData.assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness[Tuple2[String, Long]](Duration.ofSeconds(5))
+    .withTimestampAssigner(new SerializableTimestampAssigner[Tuple2[String, Long]]() {
+      override def extractTimestamp(element: Tuple2[String, Long], recordTimestamp: Long): Long = {
+        element._2
+      }
+    }));
+
+    val window = watermark.keyBy(_._1)
+      .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+      .apply(new WindowFunction[Tuple2[String, Long], String, String, TimeWindow] { // 修正类型参数语法
+        override def apply(key: String, window: TimeWindow, input: Iterable[Tuple2[String, Long]], out: Collector[String]): Unit = {
+          import scala.collection.mutable._
+          val list: ArrayBuffer[Long] = ArrayBuffer.empty[Long] // 更简洁的初始化
+          val iterator = input.iterator
+          while (iterator.hasNext) {
+            val next = iterator.next()
+            list += next._2 // 更简洁的追加操作
+          }
+          list.sortWith(_ < _) // 保持原样
+          val sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS")
+          if (!list.isEmpty) {
+            val first = sdf.format(list.head)
+            val last = sdf.format(list.last)
+            val start = sdf.format(window.getStart)
+            val end = sdf.format(window.getEnd)
+            val ret = s"key: $key, start: $start, end: $end, first: $first, last: $last"
+            out.collect(ret)
+          }
+        }
+      })
+    window.print();
+
+    env.execute("watermark")
   }
 }
