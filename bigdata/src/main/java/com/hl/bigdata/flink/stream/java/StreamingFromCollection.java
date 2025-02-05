@@ -1,23 +1,29 @@
 package com.hl.bigdata.flink.stream.java;
 
+import com.hl.bigdata.flink.funciton.*;
 import com.hl.bigdata.flink.stream.java.source.MySourceNonParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceTime;
 import com.hl.bigdata.flink.stream.java.source.MySourceWorld;
 import com.hl.bigdata.flink.stream.vo.WordWithCount;
-import org.apache.flink.api.common.eventtime.SerializableTimestampAssigner;
-import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import com.sun.istack.Nullable;
+import org.apache.flink.api.common.eventtime.*;
+import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.ReduceFunction;
 import org.apache.flink.api.java.tuple.Tuple;
 import org.apache.flink.api.java.tuple.Tuple1;
 import org.apache.flink.api.java.tuple.Tuple2;
+import org.apache.flink.api.java.tuple.Tuple3;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.configuration.RestOptions;
 import org.apache.flink.streaming.api.CheckpointingMode;
 import org.apache.flink.streaming.api.TimeCharacteristic;
-import org.apache.flink.streaming.api.datastream.*;
+import org.apache.flink.streaming.api.datastream.ConnectedStreams;
+import org.apache.flink.streaming.api.datastream.DataStream;
+import org.apache.flink.streaming.api.datastream.DataStreamSource;
+import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.CheckpointConfig;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.AssignerWithPeriodicWatermarks;
@@ -25,15 +31,16 @@ import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.windowing.WindowFunction;
 import org.apache.flink.streaming.api.watermark.Watermark;
+import org.apache.flink.streaming.api.windowing.assigners.ProcessingTimeSessionWindows;
 import org.apache.flink.streaming.api.windowing.assigners.SlidingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.assigners.TumblingEventTimeWindows;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
 import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 import org.apache.flink.util.Collector;
 import org.apache.flink.util.OutputTag;
 import org.junit.Test;
 
-import javax.annotation.Nullable;
 import java.text.SimpleDateFormat;
 import java.time.Duration;
 import java.util.*;
@@ -157,9 +164,8 @@ public class StreamingFromCollection {
                 }
             }
         });
-        SideOutputDataStream<String> evenStream = processStream.getSideOutput(even);
-        SideOutputDataStream<String> oddStream = processStream.getSideOutput(odd);
-
+        DataStream<String> evenStream = processStream.getSideOutput(even);
+        DataStream<String> oddStream = processStream.getSideOutput(odd);
 
         evenStream.print();
         oddStream.print();
@@ -372,7 +378,7 @@ public class StreamingFromCollection {
 
             /**
              * 解析提取
-             * @param stringLongTuple2
+             * @param tuple2
              * @param l
              * @return
              */
@@ -475,10 +481,254 @@ public class StreamingFromCollection {
                         }
                     }
                 });
-        SideOutputDataStream<Tuple2<String, Long>> sideOutput = window.getSideOutput(outputTag);
+        DataStream<Tuple2<String, Long>> sideOutput = window.getSideOutput(outputTag);
         sideOutput.print();
         window.print();
 
         env.execute("watermark");
+    }
+
+    @Test
+    public void countWindowsTest() throws Exception {
+        DataStreamSource<String> wordDs = env.socketTextStream("127.0.0.1", 3456);
+        wordDs.map(new MapFunction<String, Tuple2<String, Long>>() {
+                    @Override
+                    public Tuple2<String, Long> map(String s) throws Exception {
+                        return new Tuple2<>(s, 1L);
+                    }
+                })
+                .keyBy(0)
+                // 累计单个key中处理3条就进行处理
+                .countWindow(3)
+                .sum(1)
+                .print("窗口测试=>>");
+
+        env.execute();
+    }
+
+    /**
+     * 滚动窗口 测试一
+     */
+    @Test
+    public void scrollWindow() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        dataStreamSource.map(new MapFunction<String, Tuple3<String, Integer, Integer>>() {
+            @Override
+            public Tuple3<String, Integer, Integer> map(String s) throws Exception {
+                return new Tuple3<>(s, s.length(), 1);
+            }
+        }).keyBy(0)
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .apply(new WindowFunction<Tuple3<String, Integer, Integer>, String, Tuple, TimeWindow>() {
+
+                    @Override
+                    public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple3<String, Integer, Integer>> iterable, Collector<String> collector) throws Exception {
+                        List<String> windowStr = new ArrayList<>();
+                        iterable.forEach(tuple3 -> {
+                            windowStr.add("(" + tuple3.f0 + "," + tuple3.f1 + "," + tuple3.f2 + ")");
+                        });
+                        String print = "window[" + timeWindow.getStart() + ":" + timeWindow.getEnd() + "]:" + String.join(",", windowStr);
+                        collector.collect(print);
+                    }
+                })
+                .print("windows:>>>");
+        env.execute();
+    }
+
+    /**
+     * 滚动窗口 测试二
+     * @throws Exception
+     */
+    @Test
+    public void scrollWindow2() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        dataStreamSource.map(new StrSplitMapFunction())
+                .keyBy(0)
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .sum(2)
+                .print("sum=>>");
+
+        env.execute();
+    }
+
+    /**
+     * 滑动窗口 测试
+     */
+    @Test
+    public void slideWindow() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        dataStreamSource.map(new StrSplitMapFunction())
+                .keyBy(0)
+                .window(SlidingProcessingTimeWindows.of(Time.seconds(5), Time.seconds(3)))
+                .apply(new ApplyWindowFunction())
+                .print("window:>>>");
+
+        env.execute();
+    }
+
+    /**
+     * 会话窗口 测试
+     */
+    @Test
+    public void sessionWindow() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        dataStreamSource.map(new StrSplitMapFunction())
+                .keyBy(0)
+                .window(ProcessingTimeSessionWindows.withGap(Time.seconds(15)))
+                .apply(new ApplyWindowFunction())
+                .print("window:>>>");
+
+        env.execute();
+    }
+
+    /**
+     * 事件时间 --周期时间窗口
+     * AssignerWithPeriodicWatermarks(周期性水位线)
+     */
+    @Test
+    public void eventTimePeriodicWindow() throws Exception {
+        env.setParallelism(1);
+        // 设置10s生成一次水位线
+        env.getConfig().setAutoWatermarkInterval(10000);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        SingleOutputStreamOperator<Tuple3<String, Integer, Integer>> tsDs = dataStreamSource.map(new StrSplitMapFunction())
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Tuple3<String, Integer, Integer>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                                .withTimestampAssigner(new EventTimeAssignerFunction())
+                );
+
+        SingleOutputStreamOperator<String> result = tsDs.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(3)))
+                .apply(new ApplyWindowFunction());
+
+        tsDs.print("water==>");
+        result.print("result==>");
+
+        env.execute();
+    }
+
+    /**
+     * 事件时间，设置延迟接受时间 --周期时间窗口
+     */
+    @Test
+    public void eventTimePeriodicWindowLateness() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        SingleOutputStreamOperator<Tuple3<String, Integer, Integer>> water = dataStreamSource.map(new StrSplitMapFunction())
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Tuple3<String, Integer, Integer>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                                .withTimestampAssigner(new EventTimeAssignerFunction())
+                );
+        SingleOutputStreamOperator<String> result = water.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .allowedLateness(Time.seconds(3))
+                .apply(new ApplyWindowFunction());
+
+        water.print("water=>>");
+        result.print("result=>>");
+
+        env.execute();
+    }
+
+    /**
+     * 事件时间，设置延迟接受时间，并设置侧输出流 --周期时间窗口
+     */
+    @Test
+    public void eventTimePeriodicWindowLatenessWithSideOut() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        SingleOutputStreamOperator<Tuple3<String, Integer, Integer>> water = dataStreamSource.map(new StrSplitMapFunction())
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.<Tuple3<String, Integer, Integer>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                                .withTimestampAssigner(new EventTimeAssignerFunction())
+                );
+
+        // 侧边输出流
+        OutputTag<Tuple3<String, Integer, Integer>> outputTag = new OutputTag<Tuple3<String, Integer, Integer>>("lateData"){};
+
+        SingleOutputStreamOperator<String> result = water.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .allowedLateness(Time.seconds(3))
+                .sideOutputLateData(outputTag)
+                .apply(new ApplyWindowFunction());
+
+        water.print("water=>>");
+        result.print("window=>>");
+        result.getSideOutput(outputTag).print("side=>>");
+
+        env.execute();
+    }
+
+    /**
+     * 标记数位线
+     */
+    @Test
+    public void markWatermark() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        SingleOutputStreamOperator<Tuple3<String, Integer, Integer>> tsDs = dataStreamSource.map(new StrSplitMapFunction())
+                .assignTimestampsAndWatermarks(
+                        WatermarkStrategy.forGenerator(
+                                new MyWatermarkGenerator()
+                        ).withTimestampAssigner(new EventTimeAssignerFunction())
+                );
+
+        SingleOutputStreamOperator<String> result = tsDs.keyBy(0)
+                .window(TumblingEventTimeWindows.of(Time.seconds(5)))
+                .apply(new ApplyWindowFunction());
+
+        tsDs.print("water==>");
+        result.print("later==>");
+
+        env.execute();
+    }
+
+    /**
+     * 窗口聚合函数
+     */
+    @Test
+    public void windowAggregateFunction() throws Exception {
+        env.setParallelism(1);
+        DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
+        SingleOutputStreamOperator<Tuple2<String, Integer>> dataMap = dataStreamSource.map(new MapFunction<String, Tuple2<String, Integer>>() {
+            @Override
+            public Tuple2<String, Integer> map(String s) throws Exception {
+                String[] split = s.split(",");
+                return new Tuple2<>(split[0], Integer.parseInt(split[1]));
+            }
+        });
+
+        SingleOutputStreamOperator<Integer> result = dataMap.keyBy(0)
+                .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
+                .aggregate(new AggregateFunction<Tuple2<String, Integer>, Integer, Integer>() {
+
+                    @Override
+                    public Integer createAccumulator() {
+                        return 0;
+                    }
+
+                    @Override
+                    public Integer add(Tuple2<String, Integer> t, Integer o) {
+                        return o + t.f1;
+                    }
+
+                    @Override
+                    public Integer getResult(Integer o) {
+                        return o;
+                    }
+
+                    @Override
+                    public Integer merge(Integer o, Integer acc1) {
+                        return o + acc1;
+                    }
+                });
+
+        result.print("result=>>");
+
+        env.execute();
     }
 }

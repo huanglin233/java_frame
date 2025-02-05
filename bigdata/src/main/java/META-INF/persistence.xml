@@ -1,24 +1,24 @@
 <?xml version="1.0"?>
 <persistence xmlns="http://java.sun.com/xml/ns/persistence"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
-	version="2.0">
-	<persistence-unit name="hbase_pu">
-    <!--指定供应商地址，固定的使用kundera  -->
-		<provider>com.impetus.kundera.KunderaPersistence</provider>
-		<!-- 指定映射的类的全路径 -->
-		<class>com.hl.bigdata.hbase.kunderaApi.DoMain</class>
-		<properties>
+             xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+             xsi:schemaLocation="http://java.sun.com/xml/ns/persistence http://java.sun.com/xml/ns/persistence/persistence_2_0.xsd"
+             version="2.0">
+    <persistence-unit name="hbase_pu">
+        <!--指定供应商地址，固定的使用kundera  -->
+        <provider>com.impetus.kundera.KunderaPersistence</provider>
+        <!-- 指定映射的类的全路径 -->
+        <class>com.hl.bigdata.hbase.kunderaApi.DoMain</class>
+        <properties>
             <!-- 配置zookeeper节点服务器ip -->
-			<property name="kundera.nodes" value="s100" />
+            <property name="kundera.nodes" value="s100"/>
             <!-- 配置zookeeper rpc连接端口 -->
-			<property name="kundera.port" value="2181" />
+            <property name="kundera.port" value="2181"/>
             <!-- 配置hbase名字空间和表内容 -->
-			<property name="kundera.keyspace" value="test:t2" />
+            <property name="kundera.keyspace" value="test:t2"/>
             <!-- 配置hbase方言 -->
-			<property name="kundera.dialect" value="hbase" />
+            <property name="kundera.dialect" value="hbase"/>
             <!-- 配置hbase依赖类 -->
-			<property name="kundera.client.lookup.class" value="com.impetus.client.hbase.HBaseClientFactory" />
-		</properties>
-	</persistence-unit>
+            <property name="kundera.client.lookup.class" value="com.impetus.client.hbase.HBaseClientFactory"/>
+        </properties>
+    </persistence-unit>
 </persistence>
