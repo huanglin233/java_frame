@@ -1,6 +1,10 @@
 package com.hl.bigdata.flink.batch.scala
 
+import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.streaming.api.functions.ProcessFunction
+import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.util.Collector
 import org.junit.Test
 
 /**
@@ -52,5 +56,41 @@ class BatchTest {
   @Test
   def broadcastTest(): Unit = {
     // 1.准备广播数据
+    val broadcastData = List(("hl", 29), ("ll", 30), ("hh", 31))
+    import org.apache.flink.api.scala.createTypeInformation
+    val broadcastSet = env.fromCollection(broadcastData)
+
+    // 2.处理广播数据
+    val key = new MapStateDescriptor[String, Int]("broadcase", classOf[String], classOf[Int])
+    val broadcast = broadcastSet.broadcast(key)
+
+    // 3.源数据
+    val data = env.fromElements("hl", "ll", "hh")
+      .process(new ProcessFunction[String, String]() {
+
+        override def processElement(i: String, context: ProcessFunction[String, String]#Context, collector: Collector[String]): Unit = {
+          Thread.sleep(2000)
+          collector.collect(i)
+        }
+      })
+
+    data.keyBy(_.toString)
+      .connect(broadcast)
+      .process(new KeyedBroadcastProcessFunction[String, String, (String, Int), String] {
+
+        override def processElement(in1: String, readOnlyContext: KeyedBroadcastProcessFunction[String, String, (String, Int), String]#ReadOnlyContext, collector: Collector[String]): Unit = {
+          val broadcastState = readOnlyContext.getBroadcastState(key)
+          val age = broadcastState.get(in1)
+          collector.collect(s"key:$in1,age:$age")
+        }
+
+        override def processBroadcastElement(in2: (String, Int), context: KeyedBroadcastProcessFunction[String, String, (String, Int), String]#Context, collector: Collector[String]): Unit = {
+          val broadcastState = context.getBroadcastState(key)
+          broadcastState.put(in2._1, in2._2)
+        }
+      })
+      .print()
+
+    env.execute("broadcastTest")
   }
 }

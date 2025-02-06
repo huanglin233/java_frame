@@ -1,5 +1,7 @@
 package com.hl.bigdata.flink.batch.java;
 
+import org.apache.flink.api.common.JobExecutionResult;
+import org.apache.flink.api.common.accumulators.IntCounter;
 import org.apache.flink.api.common.functions.MapFunction;
 import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
@@ -18,6 +20,7 @@ import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
+import org.apache.spark.JobExecutionStatus;
 import org.junit.Test;
 import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
@@ -35,6 +38,7 @@ import java.util.List;
 public class BatchTest {
 
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
+    private DataStreamSource<String> fromElements;
 
     @Test
     public void fromCollection() throws Exception {
@@ -81,10 +85,8 @@ public class BatchTest {
         DataStreamSource<Tuple2<String, Integer>> broadcastDataSet = env.fromCollection(broadcastData);
 
         // 2.处理广播的数据
-
         MapStateDescriptor<String, Integer> key = new MapStateDescriptor<>("broadcast", Types.STRING, Types.INT);
         BroadcastStream<HashMap<String, Integer>> broadcast = broadcastDataSet.map(new MapFunction<Tuple2<String, Integer>, HashMap<String, Integer>>() {
-
             @Override
             public HashMap<String, Integer> map(Tuple2<String, Integer> t2) throws Exception {
                 HashMap<String, Integer> map = new HashMap<>();
@@ -123,5 +125,39 @@ public class BatchTest {
         }).print();
 
         env.execute("broadcast");
+    }
+
+    /**
+     * 累加器
+     *
+     */
+    @Test
+    public void counterTest() throws Exception {
+        DataStreamSource<String> data = env.fromElements("a", "b", "c", "b", "a");
+        SingleOutputStreamOperator<String> result = data.map(new RichMapFunction<String, String>() {
+
+            // 1.创建累加器
+            private IntCounter counter = new IntCounter();
+
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                // 2.注册累加器
+                getRuntimeContext().addAccumulator("counter", counter);
+            }
+
+            @Override
+            public String map(String arg0) throws Exception {
+                // 3.使用累加器
+                counter.add(1);
+                return arg0;
+            }
+            
+
+        }).setParallelism(8);
+
+        // 4.获取累加器
+        JobExecutionResult re = env.execute("counterTest");
+        int num = re.getAccumulatorResult("counter");
+        System.out.println(num);
     }
 }
