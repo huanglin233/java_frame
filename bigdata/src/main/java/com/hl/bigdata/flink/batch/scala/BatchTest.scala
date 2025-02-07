@@ -1,11 +1,18 @@
 package com.hl.bigdata.flink.batch.scala
 
+import org.apache.flink.api.common.accumulators.IntCounter
+import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
+import org.apache.flink.api.common.functions.RichMapFunction
 import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
-import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction
+import org.apache.flink.streaming.api.functions.co.{KeyedBroadcastProcessFunction, ProcessJoinFunction}
 import org.apache.flink.streaming.api.scala.StreamExecutionEnvironment
+import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.util.Collector
 import org.junit.Test
+
+import java.time.Duration
 
 /**
  * flink 批处理
@@ -92,5 +99,68 @@ class BatchTest {
       .print()
 
     env.execute("broadcastTest")
+  }
+
+  /**
+   * 累加器
+   */
+  @Test
+  def counterTest(): Unit = {
+    import org.apache.flink.api.scala.createTypeInformation
+    val data = env.fromElements("a", "b", "c", "d", "e")
+    data.map(new RichMapFunction[String, String] {
+
+      // 1.创建累加器
+      val counter = new IntCounter()
+
+      override def open(parameter: Configuration): Unit = {
+        // 2.注册累加器
+        getRuntimeContext.addAccumulator("counter", counter)
+      }
+
+      override def map(in: String): String = {
+        // 3.使用累加器
+        counter.add(1)
+        in
+      }
+    }).setParallelism(8)
+
+    //4.获取累加器
+    val re =  env.execute("counterTest")
+    val num = re.getAccumulatorResult[Int]("counter")
+    println(num)
+  }
+
+  /**
+   * 关联两个流
+   */
+  @Test
+  def joinTest(): Unit = {
+    import org.apache.flink.api.scala.createTypeInformation
+
+    val data1 = env.fromElements((1, "a"), (2, "b"), (3, "c"), (4, "d"), (1, "c"))
+      .assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(3))
+        .withTimestampAssigner(new SerializableTimestampAssigner[(Int, String)] {
+          override def extractTimestamp(element: (Int, String), recordTimestamp: Long): Long = 1
+        }))
+
+    val data2 = env.fromElements((1, 1), (2, 2), (3, 3), (1, 2))
+      .assignTimestampsAndWatermarks(
+        WatermarkStrategy
+          .forBoundedOutOfOrderness(Duration.ofSeconds(3))
+          .withTimestampAssigner(new SerializableTimestampAssigner[(Int, Int)] {
+            override def extractTimestamp(element: (Int, Int), recordTimestamp: Long): Long = 2
+          }))
+      
+    data1.keyBy(_._1)
+      .intervalJoin(data2.keyBy(_._1))
+      .between(Time.seconds(-5), Time.seconds(5))
+      .process(new ProcessJoinFunction[(Int, String), (Int, Int), String]() {
+        override def processElement(in1: (Int, String), in2: (Int, Int), context: ProcessJoinFunction[(Int, String), (Int, Int), String]#Context, collector: Collector[String]): Unit = {
+          collector.collect(s"$in1-$in2")
+        }
+      }).print()
+
+    env.execute("crossTest")
   }
 }

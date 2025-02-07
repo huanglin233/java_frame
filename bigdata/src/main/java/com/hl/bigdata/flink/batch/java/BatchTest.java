@@ -14,10 +14,12 @@ import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
+import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
+import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
 import org.apache.flink.util.Collector;
 import org.apache.spark.JobExecutionStatus;
@@ -160,4 +162,28 @@ public class BatchTest {
         int num = re.getAccumulatorResult("counter");
         System.out.println(num);
     }
+
+    /**
+     * 连接两个流
+     */
+    @Test
+    public void connectTest() throws Exception {
+        DataStreamSource<String> data1 = env.fromElements("a", "b", "c");
+        DataStreamSource<Integer> data2 = env.fromElements(1, 2, 3);
+        data1.connect(data2).map(new CoMapFunction<String, Integer, String>() {
+
+            @Override
+            public String map1(String s) throws Exception {
+                return s;
+            }
+
+            @Override
+            public String map2(Integer integer) throws Exception {
+                return integer.toString();
+            }
+        }).print();
+
+        env.execute("cross");
+    }
+
 }
