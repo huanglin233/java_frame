@@ -1,35 +1,31 @@
-package com.hl.bigdata.flink.batch.java;
+package com.hl.bigdata.flink.operator.java;
 
+import org.apache.commons.io.FileUtils;
 import org.apache.flink.api.common.JobExecutionResult;
 import org.apache.flink.api.common.accumulators.IntCounter;
+import org.apache.flink.api.common.eventtime.WatermarkStrategy;
+import org.apache.flink.api.common.functions.FlatMapFunction;
 import org.apache.flink.api.common.functions.MapFunction;
-import org.apache.flink.api.common.functions.RichFunction;
 import org.apache.flink.api.common.functions.RichMapFunction;
-import org.apache.flink.api.common.state.BroadcastState;
-import org.apache.flink.api.common.state.MapState;
-import org.apache.flink.api.common.state.MapStateDescriptor;
-import org.apache.flink.api.common.state.ReadOnlyBroadcastState;
+import org.apache.flink.api.common.state.*;
 import org.apache.flink.api.common.typeinfo.Types;
-import org.apache.flink.api.java.operators.DataSource;
 import org.apache.flink.api.java.tuple.Tuple2;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.datastream.BroadcastStream;
-import org.apache.flink.streaming.api.datastream.ConnectedStreams;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.datastream.SingleOutputStreamOperator;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
+import org.apache.flink.streaming.api.functions.KeyedProcessFunction;
 import org.apache.flink.streaming.api.functions.ProcessFunction;
 import org.apache.flink.streaming.api.functions.co.CoMapFunction;
 import org.apache.flink.streaming.api.functions.co.KeyedBroadcastProcessFunction;
+import org.apache.flink.streaming.api.windowing.assigners.TumblingProcessingTimeWindows;
+import org.apache.flink.streaming.api.windowing.time.Time;
 import org.apache.flink.util.Collector;
-import org.apache.spark.JobExecutionStatus;
 import org.junit.Test;
-import org.roaringbitmap.longlong.Roaring64NavigableMap;
 
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
+import java.io.File;
+import java.util.*;
 
 /**
  * flink 批处理
@@ -37,7 +33,7 @@ import java.util.List;
  * @author huanglin
  * @date 2024/12/26 22:06
  */
-public class BatchTest {
+public class OperatorTest {
 
     StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
     private DataStreamSource<String> fromElements;
@@ -131,7 +127,6 @@ public class BatchTest {
 
     /**
      * 累加器
-     *
      */
     @Test
     public void counterTest() throws Exception {
@@ -153,7 +148,7 @@ public class BatchTest {
                 counter.add(1);
                 return arg0;
             }
-            
+
 
         }).setParallelism(8);
 
@@ -184,6 +179,84 @@ public class BatchTest {
         }).print();
 
         env.execute("cross");
+    }
+
+    /**
+     * 分布式缓存
+     */
+    @Test
+    public void registerCacheFile() throws Exception {
+        // 注册一个文件
+        env.registerCachedFile("hdfs://127.0.0.1:8020/hl/cache.txt", "cache.txt");
+
+        DataStreamSource<String> dataStream = env.fromElements("a", "b", "c", "d", "e");
+        dataStream.map(new RichMapFunction<String, String>() {
+            Map<String, Integer> cache = new HashMap<>();
+
+            @Override
+            public void open(Configuration parameters) throws Exception {
+                File file = getRuntimeContext().getDistributedCache().getFile("cache.txt");
+                FileUtils.readLines(file).forEach(line -> {
+                    String[] split = line.split(",");
+                    cache.put(split[0], Integer.parseInt(split[1]));
+                });
+            }
+
+            @Override
+            public String map(String s) {
+                Integer i = cache.get(s);
+
+                return i != null ? s + ":" + i : s + ":null";
+            }
+        }).print();
+
+        env.execute("registerCacheFile");
+    }
+
+    /**
+     * 去重
+     */
+    @Test
+    public void distinct() throws Exception {
+        // 1.准备数据
+        ArrayList<String> list = new ArrayList<>();
+        list.add("ccc bbb");
+        list.add("how are you");
+        list.add("you are good");
+
+        // 2.读取数据
+        DataStreamSource<String> data = env.fromCollection(list);
+
+        // 3.处理数据
+        data.flatMap(new FlatMapFunction<String, String>() {
+
+                    @Override
+                    public void flatMap(String s, Collector<String> collector) throws Exception {
+                        String[] worlds = s.split("\\W+");
+                        for (String world : worlds) {
+                            collector.collect(world);
+                        }
+                    }
+                }).keyBy(word -> word)
+                .process(new KeyedProcessFunction<String, String, String>() {
+                    private ValueState<Boolean> seen;
+
+                    @Override
+                    public void open(Configuration parameters) throws Exception {
+                        seen = getRuntimeContext().getState(new ValueStateDescriptor<>("seen", Types.BOOLEAN));
+                    }
+
+                    @Override
+                    public void processElement(String s, KeyedProcessFunction<String, String, String>.Context context, Collector<String> collector) throws Exception {
+                        if (seen.value() == null) {
+                            seen.update(true);
+                            collector.collect(s);
+                        }
+                    }
+                }).print();
+
+
+        env.execute("distinct");
     }
 
 }

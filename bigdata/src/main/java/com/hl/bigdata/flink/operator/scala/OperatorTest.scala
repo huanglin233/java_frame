@@ -1,9 +1,10 @@
-package com.hl.bigdata.flink.batch.scala
+package com.hl.bigdata.flink.operator.scala
 
+import org.apache.commons.io.FileUtils
 import org.apache.flink.api.common.accumulators.IntCounter
 import org.apache.flink.api.common.eventtime.{SerializableTimestampAssigner, WatermarkStrategy}
 import org.apache.flink.api.common.functions.RichMapFunction
-import org.apache.flink.api.common.state.MapStateDescriptor
+import org.apache.flink.api.common.state.{MapStateDescriptor, ValueState, ValueStateDescriptor}
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.{KeyedBroadcastProcessFunction, ProcessJoinFunction}
@@ -12,7 +13,9 @@ import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.util.Collector
 import org.junit.Test
 
+import java.nio.charset.StandardCharsets
 import java.time.Duration
+import scala.collection.mutable
 
 /**
  * flink 批处理
@@ -20,7 +23,7 @@ import java.time.Duration
  * @author huanglin
  * @date 2024/12/26 22:07
  */
-class BatchTest {
+class OperatorTest {
 
   val env: StreamExecutionEnvironment = StreamExecutionEnvironment.getExecutionEnvironment
 
@@ -126,7 +129,7 @@ class BatchTest {
     }).setParallelism(8)
 
     //4.获取累加器
-    val re =  env.execute("counterTest")
+    val re = env.execute("counterTest")
     val num = re.getAccumulatorResult[Int]("counter")
     println(num)
   }
@@ -151,7 +154,7 @@ class BatchTest {
           .withTimestampAssigner(new SerializableTimestampAssigner[(Int, Int)] {
             override def extractTimestamp(element: (Int, Int), recordTimestamp: Long): Long = 2
           }))
-      
+
     data1.keyBy(_._1)
       .intervalJoin(data2.keyBy(_._1))
       .between(Time.seconds(-5), Time.seconds(5))
@@ -162,5 +165,62 @@ class BatchTest {
       }).print()
 
     env.execute("crossTest")
+  }
+
+  /**
+   * 分布式缓存
+   */
+  @Test
+  def registerCacheFile(): Unit = {
+    import org.apache.flink.api.scala.createTypeInformation
+    // 注册一个文件
+    env.registerCachedFile("hdfs://127.0.0.1/hl/cache.txt", "cache.txt")
+    val dataStream = env.fromElements("a", "b", "e", "f")
+    dataStream.map(new RichMapFunction[String, String]() {
+      import scala.collection.mutable.Map
+      var cache: Map[String, Int] = Map()
+
+      override def open(parameters: Configuration): Unit = {
+        val file = getRuntimeContext.getDistributedCache.getFile("cache.txt")
+        FileUtils.readLines(file, StandardCharsets.UTF_8).forEach(e => {
+          val split = e.split(",")
+          cache += (split(0) -> split(1).toInt)
+        })
+      }
+
+      override def map(in: String): String = {
+        val value = cache.getOrElse(in, "null")
+        s"$in,$value"
+      }
+    }).print()
+
+    env.execute("registerCacheFile")
+  }
+
+  /**
+   * 数据简单的去重
+   */
+  @Test
+  def distinct(): Unit = {
+    import org.apache.flink.api.scala.createTypeInformation
+    env.fromElements("ccc bbb", "how are you", "you are good")
+      .flatMap(e => e.split("\\W+"))
+      .keyBy(e => e)
+      .process(new ProcessFunction[String, String] {
+        var seen: ValueState[Boolean] = _
+
+        override def open(parameters: Configuration): Unit = {
+          seen = getRuntimeContext.getState(new ValueStateDescriptor[Boolean]("seen", classOf[Boolean]))
+        }
+
+        override def processElement(value: String, ctx: ProcessFunction[String, String]#Context, out: Collector[String]): Unit = {
+          if (seen.value() == null || !seen.value()) {
+            seen.update(true)
+            out.collect(value)
+          }
+        }
+      }).print()
+
+    env.execute("distinct")
   }
 }
