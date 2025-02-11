@@ -1,5 +1,6 @@
 package com.hl.bigdata.flink.stream.java;
 
+import com.hl.bigdata.flink.custom.scala.CustomWindowAssigner;
 import com.hl.bigdata.flink.funciton.*;
 import com.hl.bigdata.flink.stream.java.source.MySourceNonParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceParallelism;
@@ -7,6 +8,7 @@ import com.hl.bigdata.flink.stream.java.source.MySourceTime;
 import com.hl.bigdata.flink.stream.java.source.MySourceWorld;
 import com.hl.bigdata.flink.stream.vo.WordWithCount;
 import com.sun.istack.Nullable;
+import jodd.typeconverter.Convert;
 import org.apache.flink.api.common.eventtime.*;
 import org.apache.flink.api.common.functions.AggregateFunction;
 import org.apache.flink.api.common.functions.FlatMapFunction;
@@ -253,7 +255,7 @@ public class StreamingFromCollection {
     }
 
     @Test
-    public void checkPoint() throws Exception{
+    public void checkPoint() throws Exception {
         // 每隔1000 ms进行启动一个检查点 --设置checkpoint得周期
         env.enableCheckpointing(1000);
         env.getCheckpointConfig().setCheckpointingMode(CheckpointingMode.EXACTLY_ONCE);
@@ -271,8 +273,8 @@ public class StreamingFromCollection {
         // 设置checkpoint存储方式 --可flink客户端flink-conf.yaml配置文件中进行全局配置
 //        env.setStateBackend(new MemoryStateBackend());
 //        env.setStateBackend(new FsStateBackend("/hdfs/...."));
-        DataStreamSource<String>  dateStream = env.addSource(new MySourceWorld());
-        DataStream<WordWithCount> sum        = dateStream.flatMap(new FlatMapFunction<String, WordWithCount>() {
+        DataStreamSource<String> dateStream = env.addSource(new MySourceWorld());
+        DataStream<WordWithCount> sum = dateStream.flatMap(new FlatMapFunction<String, WordWithCount>() {
                     @Override
                     public void flatMap(String s, Collector<WordWithCount> collector) throws Exception {
                         String[] strs = s.split("\\s");
@@ -360,7 +362,7 @@ public class StreamingFromCollection {
 
         SingleOutputStreamOperator<Tuple2<String, Long>> watermark = map.assignTimestampsAndWatermarks(new AssignerWithPeriodicWatermarks<Tuple2<String, Long>>() {
 
-            Long  currentMaxTimestamp    = 0L;
+            Long currentMaxTimestamp = 0L;
             final Long maxOutOfOrderness = 1000L; // 最大允许乱序时间10s
 
             SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
@@ -409,7 +411,7 @@ public class StreamingFromCollection {
                      */
                     @Override
                     public void apply(Tuple tuple, TimeWindow timeWindow, Iterable<Tuple2<String, Long>> iterable, Collector<String> collector) throws Exception {
-                        String     key  = tuple.toString();
+                        String key = tuple.toString();
                         List<Long> list = new ArrayList<>();
                         Iterator<Tuple2<String, Long>> iterator = iterable.iterator();
                         while (iterator.hasNext()) {
@@ -418,7 +420,7 @@ public class StreamingFromCollection {
                         }
                         Collections.sort(list);
                         SimpleDateFormat sdf = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS");
-                        if(!list.isEmpty()) {
+                        if (!list.isEmpty()) {
                             String ret = key + "," + list.size() + ","
                                     + sdf.format(list.get(0)) + ","
                                     + sdf.format(list.get(list.size() - 1))
@@ -453,8 +455,9 @@ public class StreamingFromCollection {
                         return tuple2.f1;
                     }
                 }));
-        OutputTag<Tuple2<String, Long>>    outputTag = new OutputTag<Tuple2<String, Long>>("late-data"){};
-        SingleOutputStreamOperator<String> window    = watermark.keyBy(0)
+        OutputTag<Tuple2<String, Long>> outputTag = new OutputTag<Tuple2<String, Long>>("late-data") {
+        };
+        SingleOutputStreamOperator<String> window = watermark.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(3)))
                 .allowedLateness(Time.seconds(5)) // 允许迟到5s
                 .sideOutputLateData(outputTag)
@@ -514,11 +517,11 @@ public class StreamingFromCollection {
         env.setParallelism(1);
         DataStreamSource<String> dataStreamSource = env.socketTextStream("127.0.0.1", 3456);
         dataStreamSource.map(new MapFunction<String, Tuple3<String, Integer, Integer>>() {
-            @Override
-            public Tuple3<String, Integer, Integer> map(String s) throws Exception {
-                return new Tuple3<>(s, s.length(), 1);
-            }
-        }).keyBy(0)
+                    @Override
+                    public Tuple3<String, Integer, Integer> map(String s) throws Exception {
+                        return new Tuple3<>(s, s.length(), 1);
+                    }
+                }).keyBy(0)
                 .window(TumblingProcessingTimeWindows.of(Time.seconds(5)))
                 .apply(new WindowFunction<Tuple3<String, Integer, Integer>, String, Tuple, TimeWindow>() {
 
@@ -538,6 +541,7 @@ public class StreamingFromCollection {
 
     /**
      * 滚动窗口 测试二
+     *
      * @throws Exception
      */
     @Test
@@ -648,7 +652,8 @@ public class StreamingFromCollection {
                 );
 
         // 侧边输出流
-        OutputTag<Tuple3<String, Integer, Integer>> outputTag = new OutputTag<Tuple3<String, Integer, Integer>>("lateData"){};
+        OutputTag<Tuple3<String, Integer, Integer>> outputTag = new OutputTag<Tuple3<String, Integer, Integer>>("lateData") {
+        };
 
         SingleOutputStreamOperator<String> result = water.keyBy(0)
                 .window(TumblingEventTimeWindows.of(Time.seconds(5)))
@@ -730,5 +735,33 @@ public class StreamingFromCollection {
         result.print("result=>>");
 
         env.execute();
+    }
+
+    /**
+     * 自定义窗口
+     */
+    @Test
+    public void customWindow() throws Exception {
+        DataStreamSource<String> data = env.socketTextStream("127.0.0.1", 3456);
+
+        data.map(new MapFunction<String, Tuple2<String, Integer>>() {
+                    @Override
+                    public Tuple2<String, Integer> map(String s) throws Exception {
+                        String[] split = s.split(",");
+                        return new Tuple2<>(split[0], Convert.toIntValue(split[1]));
+                    }
+                }).assignTimestampsAndWatermarks(WatermarkStrategy.<Tuple2<String, Integer>>forBoundedOutOfOrderness(Duration.ofSeconds(5))
+                        .withTimestampAssigner(new SerializableTimestampAssigner<Tuple2<String, Integer>>() {
+                            @Override
+                            public long extractTimestamp(Tuple2<String, Integer> o, long l) {
+                                return System.currentTimeMillis();
+                            }
+                        }))
+                .keyBy(e -> e.f0)
+                .window(new CustomWindowAssigner<>(10000))
+                .sum(1)
+                .print();
+
+        env.execute("custom window");
     }
 }
