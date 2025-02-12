@@ -1,22 +1,21 @@
 package com.hl.bigdata.flink.stream.scala
 
+import com.hl.bigdata.flink.custom.scala.{CustomWindowAssigner}
 import com.hl.bigdata.flink.stream.scala.source.{MySourceNonParallelism, MySourceParallelism, MySourceWorld}
 import groovy.util.logging.Slf4j
-import org.apache.flink.api.common.eventtime.{TimestampAssigner, TimestampAssignerSupplier, WatermarkGenerator, WatermarkGeneratorSupplier, WatermarkOutput, WatermarkStrategy}
+import org.apache.flink.api.common.eventtime._
 import org.apache.flink.api.common.functions.MapFunction
 import org.apache.flink.api.java.tuple.Tuple
 import org.apache.flink.api.scala._
 import org.apache.flink.configuration.Configuration
 import org.apache.flink.streaming.api.environment.CheckpointConfig.ExternalizedCheckpointCleanup
+import org.apache.flink.streaming.api.functions.ProcessFunction
 import org.apache.flink.streaming.api.functions.co.CoMapFunction
-import org.apache.flink.streaming.api.functions.{AssignerWithPeriodicWatermarks, ProcessFunction}
 import org.apache.flink.streaming.api.scala.{DataStream, OutputTag, StreamExecutionEnvironment}
-import org.apache.flink.streaming.api.watermark.Watermark
 import org.apache.flink.streaming.api.windowing.assigners.{ProcessingTimeSessionWindows, SlidingProcessingTimeWindows, TumblingEventTimeWindows, TumblingProcessingTimeWindows}
 import org.apache.flink.streaming.api.windowing.time.Time
 import org.apache.flink.streaming.api.windowing.windows.TimeWindow
 import org.apache.flink.streaming.api.{CheckpointingMode, TimeCharacteristic}
-import org.apache.flink.streaming.runtime.operators.util.AssignerWithPunctuatedWatermarksAdapter
 import org.apache.flink.util.Collector
 import org.junit.Test
 
@@ -548,6 +547,32 @@ class StreamingFromCollection {
 
     result.print("result=>>")
 
+    env.execute()
+  }
+
+  /**
+   * 自定义窗口
+   */
+  @Test
+  def customeWindow(): Unit = {
+    env.setParallelism(1)
+    CustomWindowAssigner(1000L)
+    val wordDs = env.socketTextStream("127.0.0.1", 3456)
+    wordDs.map(str => {
+      val strings = str.split(",")
+      (strings(0), strings(1).toInt)
+    }).assignTimestampsAndWatermarks(WatermarkStrategy.forBoundedOutOfOrderness(Duration.ofSeconds(5))
+        .withTimestampAssigner(new TimestampAssignerSupplier[(String, Int)] {
+          override def createTimestampAssigner(context: TimestampAssignerSupplier.Context): TimestampAssigner[(String, Int)] = {
+            new TimestampAssigner[(String, Int)] {
+              override def extractTimestamp(t: (String, Int), l: Long): Long = System.currentTimeMillis()
+            }
+          }
+        }))
+      .keyBy(_._1)
+      .window(CustomWindowAssigner())
+      .sum(1)
+      .print("result=>>")
     env.execute()
   }
 }

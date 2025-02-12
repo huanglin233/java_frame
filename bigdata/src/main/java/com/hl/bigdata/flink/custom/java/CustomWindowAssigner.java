@@ -1,4 +1,4 @@
-package com.hl.bigdata.flink.custom.scala;
+package com.hl.bigdata.flink.custom.java;
 
 import org.apache.flink.api.common.ExecutionConfig;
 import org.apache.flink.api.common.typeutils.TypeSerializer;
@@ -10,7 +10,6 @@ import org.apache.flink.streaming.api.windowing.windows.TimeWindow;
 
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.List;
 
 /**

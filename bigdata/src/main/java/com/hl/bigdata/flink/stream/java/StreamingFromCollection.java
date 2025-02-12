@@ -1,6 +1,6 @@
 package com.hl.bigdata.flink.stream.java;
 
-import com.hl.bigdata.flink.custom.scala.CustomWindowAssigner;
+import com.hl.bigdata.flink.custom.java.CustomWindowAssigner;
 import com.hl.bigdata.flink.funciton.*;
 import com.hl.bigdata.flink.stream.java.source.MySourceNonParallelism;
 import com.hl.bigdata.flink.stream.java.source.MySourceParallelism;
