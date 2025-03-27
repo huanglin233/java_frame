@@ -32,10 +32,6 @@ class StreamingFromCollection {
   val conf: Configuration = new Configuration();
   val env = StreamExecutionEnvironment.createLocalEnvironmentWithWebUI(conf)
 
-  def main(args: Array[String]): Unit = {
-    streamDemo()
-  }
-
   @Test
   def streamDemo(): Unit = {
     val data = List(10, 11, 12)
