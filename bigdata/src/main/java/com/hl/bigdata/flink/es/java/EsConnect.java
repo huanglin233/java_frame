@@ -1,17 +1,12 @@
 package com.hl.bigdata.flink.es.java;
 
 import org.apache.flink.configuration.Configuration;
-import org.apache.flink.connector.elasticsearch.sink.Elasticsearch7SinkBuilder;
 import org.apache.flink.streaming.api.datastream.DataStreamSource;
 import org.apache.flink.streaming.api.environment.StreamExecutionEnvironment;
 import org.apache.http.HttpHost;
-import org.elasticsearch.action.index.IndexRequest;
-import org.elasticsearch.client.Requests;
 
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * @author huanglin
@@ -33,6 +28,4 @@ public class EsConnect {
 
         env.execute("exec es sink");
     }
-
-
 }
