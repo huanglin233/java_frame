@@ -1,6 +1,5 @@
 package com.hl.bigdata.flink.mysql.java;
 
-import com.hl.bigdata.flink.mysql.PageView;
 import org.apache.commons.dbcp.BasicDataSource;
 import org.apache.flink.configuration.Configuration;
 import org.apache.flink.streaming.api.functions.sink.RichSinkFunction;

@@ -1,4 +1,4 @@
-package com.hl.bigdata.flink.mysql;
+package com.hl.bigdata.flink.mysql.java;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.flink.api.common.serialization.DeserializationSchema;
@@ -10,17 +10,17 @@ import java.io.IOException;
  * @author huanglin
  * @date 2025/04/01 22:43
  */
-public class PageViewDeserializationSchema implements DeserializationSchema {
+public class PageViewDeserializationSchema implements DeserializationSchema<PageView> {
 
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public Object deserialize(byte[] bytes) throws IOException {
+    public PageView deserialize(byte[] bytes) throws IOException {
         return objectMapper.readValue(bytes, PageView.class);
     }
 
     @Override
-    public boolean isEndOfStream(Object o) {
+    public boolean isEndOfStream(PageView o) {
         return false;
     }
 

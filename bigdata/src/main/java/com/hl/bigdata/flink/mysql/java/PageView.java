@@ -1,4 +1,4 @@
-package com.hl.bigdata.flink.mysql;
+package com.hl.bigdata.flink.mysql.java;
 
 import com.fasterxml.jackson.annotation.JsonFormat;
 
