@@ -2,7 +2,7 @@
 <configuration>
 	<property>
 		<name>fs.defaultFS</name>
-		<value>hdfs://s100:8020/</value>
+		<value>hdfs://127.0.0.1:8020/</value>
 	</property>
 	<property>
 		<name>io.map.index.interval</name>

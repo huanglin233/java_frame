@@ -266,10 +266,11 @@ public class ClientCRUD {
 	 */
 	@Test
 	public void clinetBuffer2() throws Exception {
-		HTable table = (HTable) conn.getTable(TableName.valueOf("test:t2"));
+		Table table = conn.getTable(TableName.valueOf("test:t2"));
 		Put    put   = null;
 		long   start = System.currentTimeMillis();
-		table.setAutoFlush(false); // 关闭自动清理
+
+//		table.setAutoFlush(false); // 关闭自动清理
 		for(int i = 100001; i < 200000; i++) {
 			put = new Put(Bytes.toBytes("row" + i));
 			put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("no"), Bytes.toBytes("000" + i));
@@ -277,7 +278,7 @@ public class ClientCRUD {
 			put.addColumn(Bytes.toBytes("cf1"), Bytes.toBytes("age"), Bytes.toBytes(i));
 			table.put(put);
 		}
-		table.flushCommits();
+//		table.flushCommits();
 		long end = System.currentTimeMillis();
 		System.out.println(end - start);
 		table.close();

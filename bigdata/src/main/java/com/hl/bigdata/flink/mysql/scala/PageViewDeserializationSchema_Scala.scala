@@ -1,8 +1,8 @@
 package com.hl.bigdata.flink.mysql.scala
 
+import com.fasterxml.jackson.databind.ObjectMapper
 import org.apache.flink.api.common.serialization.DeserializationSchema
 import org.apache.flink.api.common.typeinfo.TypeInformation
-import org.apache.htrace.fasterxml.jackson.databind.ObjectMapper
 
 /**
  * @author huanglin

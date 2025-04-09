@@ -10,7 +10,7 @@
         <class>com.hl.bigdata.hbase.kunderaApi.DoMain</class>
         <properties>
             <!-- 配置zookeeper节点服务器ip -->
-            <property name="kundera.nodes" value="s100"/>
+            <property name="kundera.nodes" value="127.0.0.1"/>
             <!-- 配置zookeeper rpc连接端口 -->
             <property name="kundera.port" value="2181"/>
             <!-- 配置hbase名字空间和表内容 -->

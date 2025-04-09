@@ -1,7 +1,7 @@
 package com.hl.bigdata.spark.scala.rdd
 
 import org.apache.hadoop.hbase.{HBaseConfiguration, HColumnDescriptor, HTableDescriptor, TableName}
-import org.apache.hadoop.hbase.client.{HBaseAdmin, Put, Result, Scan}
+import org.apache.hadoop.hbase.client.{Admin, ConnectionFactory, HBaseAdmin, Put, Result, Scan}
 import org.apache.hadoop.hbase.io.ImmutableBytesWritable
 import org.apache.hadoop.hbase.mapred.TableOutputFormat
 import org.apache.hadoop.hbase.mapreduce.TableInputFormat
@@ -57,14 +57,15 @@ class Rdd_Hbase extends Rdd_BASE {
     val table_desc = new HTableDescriptor(table);
     table_desc.addFamily(new HColumnDescriptor("f1".getBytes()));
 
-    val admin = new HBaseAdmin(hbase_conf);
-    if(admin.tableExists(table)) {
+    val connection = ConnectionFactory.createConnection(hbase_conf);
+    val admin = connection.getAdmin;
+    if (admin.tableExists(table)) {
       admin.disableTable(table);
       admin.deleteTable(table);
     }
     admin.createTable(table_desc);
 
-    def convert(triple : (Int, String, Int)) = {
+    def convert(triple: (Int, String, Int)) = {
       val put = new Put(Bytes.toBytes(triple._1));
       put.addImmutable(Bytes.toBytes("f1"), Bytes.toBytes("name"), Bytes.toBytes(triple._2));
       put.addImmutable(Bytes.toBytes("f1"), Bytes.toBytes("age"), Bytes.toBytes(triple._3));
@@ -72,8 +73,8 @@ class Rdd_Hbase extends Rdd_BASE {
       (new ImmutableBytesWritable, put);
     }
 
-    val rdd_data : RDD[(Int, String, Int)] = sc.parallelize(List((1, "jim", 18), (2, "tom", 19), (3, "jack", 20), (4, "marry", 21)));
-    val rdd_put : RDD[(ImmutableBytesWritable, Put)] = rdd_data.map(convert);
+    val rdd_data: RDD[(Int, String, Int)] = sc.parallelize(List((1, "jim", 18), (2, "tom", 19), (3, "jack", 20), (4, "marry", 21)));
+    val rdd_put: RDD[(ImmutableBytesWritable, Put)] = rdd_data.map(convert);
     rdd_put.saveAsHadoopDataset(hbase_job_conf);
   }
 }

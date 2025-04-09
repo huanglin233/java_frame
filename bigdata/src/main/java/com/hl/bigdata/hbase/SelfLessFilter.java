@@ -44,7 +44,7 @@ public class SelfLessFilter extends FilterBase {
 
     @Override
     public ReturnCode filterKeyValue(Cell v) throws IOException {
-        if(Bytes.compareTo(value, v.getValue()) <= 0) {
+        if(Bytes.compareTo(value, v.getValueArray()) <= 0) {
             return ReturnCode.INCLUDE;
         }
 
